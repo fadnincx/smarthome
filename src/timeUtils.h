@@ -1,6 +1,7 @@
 #ifndef SMART_ESP_TIME_H
 #define SMART_ESP_TIME_H
 
+#include <Dusk2Dawn.h>
 #include <time.h>
 
 class Time{
@@ -13,6 +14,7 @@ class Time{
     public:
         struct tm* getTime();
         bool isDay();
+        char* uptime();
 };
 
 #endif

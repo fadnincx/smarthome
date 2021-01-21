@@ -16,7 +16,22 @@ struct tm* Time::getTime(){
     return timeinfo;
 }
 bool Time::isDay(){
-    return true;
+
+    // Get current time
+    struct tm* currentTime = getTime();
+
+    // initialize Dusk2Dawn library for location at home (+2h if summer, +1h if winter)
+    Dusk2Dawn home(46.8570158,8.6637819, currentTime->tm_isdst?2:1);
+
+    // Calculate runrise and sunset in minutes after midnight for today
+    int sunrise = home.sunrise(currentTime->tm_year+1900, currentTime->tm_mon+1, currentTime->tm_mday, currentTime->tm_isdst);
+    int sunset = home.sunrise(currentTime->tm_year+1900, currentTime->tm_mon+1, currentTime->tm_mday, currentTime->tm_isdst);
+
+    // Get minutes since midnight
+    int minutestimeSinceMidnight = ((currentTime->tm_hour)*60) + (currentTime->tm_min);
+
+    // return if between sunrise and sunset
+    return sunrise < minutestimeSinceMidnight && sunset > minutestimeSinceMidnight;
 }
 Time::Time(){
     // Set NTP Server
@@ -32,5 +47,16 @@ Time::Time(){
 
     Serial.println("Initialized Time");
 }
-
+char* Time::uptime(){
+    unsigned long milli = millis();
+    static char _return[32];
+    unsigned long secs=milli/1000, mins=secs/60;
+    unsigned int hours=mins/60, days=hours/24;
+    milli-=secs*1000;
+    secs-=mins*60;
+    mins-=hours*60;
+    hours-=days*24;
+    sprintf(_return,"Uptime %d days %2.2d:%2.2d:%2.2d.%3.3d (counter reset after ~49d17h)", (byte)days, (byte)hours, (byte)mins, (byte)secs, (int)milli);
+    return _return;
+}
 

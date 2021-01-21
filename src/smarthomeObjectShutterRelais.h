@@ -39,14 +39,13 @@ class ShutterRelais: public BaseObject{
             digitalWrite(pinUp, LOW);
             digitalWrite(pinDown, LOW);
         }
-        void subscribeToMqtt() override{
+        virtual void subscribeToMqtt() override{
             MyMQTTClient::getInstance()->subscribe((char *) setTopic, qtAT_LEAST_ONCE);
         }
-        void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
-           if(strcmp (topic, statusTopic) == 0){ // handle only if subscribed topic
+        virtual void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
+           if(strcmp (topic, setTopic) == 0){ // handle only if subscribed topic
                 for (char *iter = data; *iter != '\0'; ++iter) { // to lower
                     *iter = std::tolower(*iter);
-                    ++iter;
                 }
 
                 // Open
@@ -90,16 +89,58 @@ class ShutterRelais: public BaseObject{
 
             }
         }
-        void checkForAction() override{
-           return;
-        }
-        String getHtmlInfo() override{
-            String html = "Shutter Relais on pin <b>";
-            html += pinUp;
-            html += "</b> and <b>";
-            html += pinDown;
-            html += "</b>";
+        virtual String getFixedHtmlTile(int n){
+            String html = "<div class=\'shutterRelais\' style='border: 1px solid black; padding: 10px; margin: 10px; width: 300px;'>";
+            html+="<h3>Shutter-Relais</h3>";
+            html+="<p>Pin ";
+            html+=pinUp;
+            html+=" and Pin ";
+            html+=pinDown;
+            html+="</p>";
+            html+="<p>Up <span id='shutterRelais-";
+            html+=n;
+            html+="-up'>N/A</span></p>";
+            html+="<p>Down <span id='shutterRelais-";
+            html+=n;
+            html+="-down'>N/A</span></p>";
+            html+="<script>";
+            html+="setInterval(function() {";
+            html+="    getData";
+            html+=n;
+            html+="();";
+            html+="}, 2000);";
+            html+="function getData";
+            html+=n;
+            html+="(){";
+            html+="    var xhttp = new XMLHttpRequest();";
+            html+="    xhttp.onreadystatechange = function() {";
+            html+="        if (this.readyState == 4 && this.status == 200) {";
+            html+="            var d = JSON.parse(this.responseText);";
+            html+="            document.getElementById('shutterRelais-";
+            html+=n;
+            html+="-up').innerHTML = d.up;";
+            html+="            document.getElementById('shutterRelais-";
+            html+=n;
+            html+="-down').innerHTML = d.down;";
+            html+="        }";
+            html+="    };";
+            html+="    xhttp.open('GET', 'status/";
+            html+=n;
+            html+="', true);";
+            html+="    xhttp.send();";
+            html+="}";
+            html+="</script>";
+            html+="</div>";
+            
             return html;
+        }
+        virtual String getStatus() override{
+            String json = "{\"up\":\"";
+            json += digitalRead(pinUp)==LOW?"OFF":"ON";
+            json += "\",\"down\":\"";
+            json += digitalRead(pinDown)==LOW?"OFF":"ON";
+            json += "\"}";
+            return json;
         }
 };
 

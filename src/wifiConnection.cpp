@@ -7,10 +7,25 @@
 #include "MyMqttClient.h"
 
 
+
+
 void WifiConnection::connectToWifi() {
+
+    Serial.print("Name is "); Serial.println(Name::getInstance()->getName());
             
     // Set Wifi Hostname
-    WiFi.hostname(Name::getInstance()->getName());
+    if(WiFi.hostname() != Name::getInstance()->getName()){
+        Serial.println("Need to change Hostname");
+        WiFi.setAutoConnect(false);
+        WiFi.setAutoReconnect(false);
+        WiFi.disconnect();
+        delay(100);
+        WiFi.hostname(Name::getInstance()->getName());
+        WiFi.setAutoConnect(true);
+        WiFi.setAutoReconnect(true);
+    }
+    Serial.print("Wifi Hostname is set to:");
+    Serial.println(WiFi.hostname());
 
     // Set Wifi Mode to STA -> Station Mode -> as Wifi Client, not as Access Point
     WiFi.mode(WIFI_STA);
@@ -38,6 +53,7 @@ void WifiConnection::connectToWifi() {
 
     // Successfully connected
     Serial.println("Connected to wifi");
+    Serial.println(WiFi.localIP());
 }
 void WifiConnection::connectIfNotConnected(){
     // Check if still connected to the Wifi, else try to reconnect

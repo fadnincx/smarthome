@@ -11,9 +11,9 @@ class Config {
     private:
         static Config* instance;
         String configString;
-        std::list<BaseObject> list;
+        std::list<BaseObject*> list;
 
-        const char* availableTopic;
+        const char* availableTopic = "";
         const char* availableOnlineMessage = "online";
         const char* availableOfflineMessage = "offline";
 
@@ -26,7 +26,10 @@ class Config {
         void subscribeAllObjects();
         void distributePacketToAllObjects(char *topic, char *data, bool retain, bool duplicate);
         void checkAllForAction();
-        String getHtmlInfo();
+        String getNthStatus(size_t n);
+        String toggleNth(size_t n);
+        String getFixedHtmlTiles();
+        String getStringLoadedConfig();
 
         const char* getAvailableTopic(){
             return availableTopic;

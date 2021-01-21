@@ -4,6 +4,7 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <list>
+#include <algorithm>
 
 #include "name.h"
 #include "secrets.h"
@@ -33,24 +34,9 @@ void Config::loadConfigFromServer(){
         // file found at server
         if(httpCode == HTTP_CODE_OK) {
 
-            // get lenght of document (is -1 when Server sends no Content-Length header)
-            int len = http.getSize();
+            configString = http.getString();
 
-            // get tcp stream
-            WiFiClient * stream = http.getStreamPtr();
-
-            // read all data from server
-            while(http.connected() && (len > 0 || len == -1)) {
-
-                if(stream->available()){
-                    configString += stream->read();
-                }
-                
-            }
-
-            Serial.println();
-            Serial.println("[HTTP] connection closed or file end.\n");
-            
+            Serial.println(configString);
         }
         
     }
@@ -88,24 +74,22 @@ void Config::parseConfig(){
             elem.containsKey("msgOff") &&
             elem.containsKey("msgOn") ){
                 if(elem.containsKey("msgDark")){
-                    Switch s = Switch(
+                    list.push_back( new Switch(
                         elem["pin"],
                         elem["statusTopic"],
                         elem["setTopic"],
                         elem["msgOff"],
                         elem["msgOn"],
                         elem["msgDark"]
-                    );
-                    list.push_back(s);
+                    ));
                 } else {
-                    Switch s = Switch(
+                    list.push_back( new Switch(
                         elem["pin"],
                         elem["statusTopic"],
                         elem["setTopic"],
                         elem["msgOff"],
                         elem["msgOn"]
-                    );
-                    list.push_back(s);
+                    ));
                 }
             }
         }
@@ -120,7 +104,7 @@ void Config::parseConfig(){
             elem.containsKey("msgUp") &&
             elem.containsKey("msgStop") &&
             elem.containsKey("msgDown") ){     
-                Shutter s = Shutter(
+                list.push_back( new Shutter(
                     elem["pinUp"],
                     elem["pinDown"],
                     elem["statusTopic"],
@@ -128,8 +112,7 @@ void Config::parseConfig(){
                     elem["msgUp"],
                     elem["msgStop"],
                     elem["msgDown"]
-                );
-                list.push_back(s); 
+                )); 
             }
         }
     }
@@ -143,7 +126,7 @@ void Config::parseConfig(){
             elem.containsKey("onMsg") &&
             elem.containsKey("msgOff") &&
             elem.containsKey("msgOn") ){
-                LightRelais r = LightRelais(
+                list.push_back( new LightRelais(
                     elem["pin"],
                     elem["statusTopic"],
                     elem["setTopic"],
@@ -151,8 +134,7 @@ void Config::parseConfig(){
                     elem["onMsg"],
                     elem["msgOff"],
                     elem["msgOn"]
-                );
-                list.push_back(r);
+                ));
             }
         }
     }
@@ -168,7 +150,7 @@ void Config::parseConfig(){
             elem.containsKey("downMsg") &&
             elem.containsKey("msgOpen") &&
             elem.containsKey("msgClose") ){     
-                ShutterRelais r = ShutterRelais(
+                list.push_back( new ShutterRelais(
                     elem["pinUp"],
                     elem["pinDown"],
                     elem["statusTopic"],
@@ -178,8 +160,7 @@ void Config::parseConfig(){
                     elem["downMsg"],
                     elem["msgOpen"],
                     elem["msgClose"]
-                );
-                list.push_back(r); 
+                ));
             }
         }
     }
@@ -189,33 +170,45 @@ void Config::parseConfig(){
 void Config::loadConfig(){
     loadConfigFromServer();
     parseConfig();
+    Serial.println("Finished loading Configuration");
 }
 
 void Config::subscribeAllObjects(){
-    std::list<BaseObject>::iterator it;
-    for(it = list.begin(); it != list.end(); it++){
-        it->subscribeToMqtt();
-    }
+    for_each(list.begin(), list.end(), [](decltype(*begin(list)) act){act->subscribeToMqtt();});
 }
 void Config::distributePacketToAllObjects(char *topic, char *data, bool retain, bool duplicate){
-    std::list<BaseObject>::iterator it;
-    for(it = list.begin(); it != list.end(); it++){
-        it->msgArrived(topic, data,  retain, duplicate);
-    }
+    for_each(list.begin(), list.end(), [&](decltype(*begin(list)) act){act->msgArrived(topic, data, retain, duplicate);});
 }
 void Config::checkAllForAction(){
-    std::list<BaseObject>::iterator it;
-    for(it = list.begin(); it != list.end(); it++){
-        it->checkForAction();
-    }
+    for_each(list.begin(), list.end(), [](decltype(*begin(list)) act){act->checkForAction();});
 }
-String Config::getHtmlInfo(){
-    std::list<BaseObject>::iterator it;
-    String html = "";
-    for(it = list.begin(); it != list.end(); it++){
-        html += it->getHtmlInfo();
-        html += "<br>";
+String Config::getNthStatus(size_t n){
+    if(list.size() > n){ 
+        std::list<BaseObject*>::iterator it = list.begin();
+        advance(it, n);
+        return (*it)->getStatus();
     }
+    return "";
+}
+String Config::getFixedHtmlTiles(){
+    String html = "";
+    int index = 0;
+    for_each(list.begin(), list.end(), [&](decltype(*begin(list)) act){
+        html += act->getFixedHtmlTile(index);
+        index++;
+    });
     return html;
+}
+String Config::toggleNth(size_t n){
+    if(list.size() > n){ 
+        std::list<BaseObject*>::iterator it = list.begin();
+        advance(it, n);
+        (*it)->toggle();
+        return (*it)->getStatus();
+    }
+    return "";
+}
+String Config::getStringLoadedConfig(){
+    return configString;
 }
 

@@ -43,14 +43,13 @@ class Switch: public BaseObject{
             pinMode(pin, INPUT_PULLUP);
             physicalState = digitalRead( pin );
         }
-        void subscribeToMqtt() override{
+        virtual void subscribeToMqtt() override{
             MyMQTTClient::getInstance()->subscribe((char *) statusTopic, qtAT_LEAST_ONCE);
         }
-        void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
+        virtual void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
             if(strcmp (topic, statusTopic) == 0){ // handle only if subscribed topic
                 for (char *iter = data; *iter != '\0'; ++iter) { // to lower
                     *iter = std::tolower(*iter);
-                    ++iter;
                 }
                 if ( strstr(data, "on")) {
                     onlineState = 1;
@@ -66,7 +65,8 @@ class Switch: public BaseObject{
                 }
             }
         }
-        void checkForAction() override{
+        virtual void checkForAction() override{
+            //Serial.print("Check switch on pin ");Serial.print(pin);Serial.println("!");
             if( digitalRead( pin ) != physicalState && lastPressHandled) {
                 lastPressHandled = false;
                 timeLastPressed = millis();
@@ -99,7 +99,7 @@ class Switch: public BaseObject{
                         Led::getInstance()->blinkLed();
                     }else{
                         if (!MyMQTTClient::getInstance()->publish((char *) setTopic,(char *) msgOff,qtAT_LEAST_ONCE,false,false)) {
-                        Serial.println("MQTT Send ON Off failed");
+                        Serial.println("MQTT Send Off failed");
                         }
                         Led::getInstance()->blinkLed();
                     }
@@ -108,14 +108,90 @@ class Switch: public BaseObject{
                 
             }
         }
-        String getHtmlInfo() override{
-            String html = "Switch on pin <b>";
-            html += pin;
-            html += "</b> is ";
-            html += (physicalState==HIGH?"<b>not</b> ":"");
-            html += " pressed and online status is ";
-            html += (onlineState==1?"<b>ON</b>":"<b>OFF</b>");
+        virtual String getFixedHtmlTile(int n){
+            String html = "<div class=\'switch\' style='border: 1px solid black; padding: 10px; margin: 10px; width: 300px;'>";
+            html+="<h3>Switch</h3>";
+            html+="<p>Pin ";
+            html+=pin;
+            html+="</p>";
+            html+="<p>Physically <span id='switch-";
+            html+=n;
+            html+="-physical'>N/A</span></p>";
+            html+="<p>Online <span id='switch-";
+            html+=n;
+            html+="-online'>N/A</span></p>";
+            html+="<button type='button' onclick='toggle";
+            html+=n;
+            html+="()'>Toggle Switch</button>";
+            html+="<script>";
+            html+="setInterval(function() {";
+            html+="    getData";
+            html+=n;
+            html+="();";
+            html+="}, 2000);";
+            html+="function getData";
+            html+=n;
+            html+="(){";
+            html+="    var xhttp = new XMLHttpRequest();";
+            html+="    xhttp.onreadystatechange = function() {";
+            html+="        if (this.readyState == 4 && this.status == 200) {";
+            html+="            var d = JSON.parse(this.responseText);";
+            html+="            document.getElementById('switch-";
+            html+=n;
+            html+="-physical').innerHTML = d.physical;";
+            html+="            document.getElementById('switch-";
+            html+=n;
+            html+="-online').innerHTML = d.online;";
+            html+="        }";
+            html+="    };";
+            html+="    xhttp.open('GET', 'status/";
+            html+=n;
+            html+="', true);";
+            html+="    xhttp.send();";
+            html+="}";
+            html+="function toggle";
+            html+=n;
+            html+="(){";
+            html+="    var xhttp = new XMLHttpRequest();";
+            html+="    xhttp.onreadystatechange = function() {";
+            html+="        if (this.readyState == 4 && this.status == 200) {";
+            html+="            var d = JSON.parse(this.responseText);";
+            html+="            document.getElementById('switch-";
+            html+=n;
+            html+="-physical').innerHTML = d.physical;";
+            html+="            document.getElementById('switch-";
+            html+=n;
+            html+="-online').innerHTML = d.online;";
+            html+="        }";
+            html+="    };";
+            html+="    xhttp.open('GET', 'toggle/";
+            html+=n;
+            html+="', true);";
+            html+="    xhttp.send();";
+            html+="}";
+            html+="</script>";
+            html+="</div>";
+            
             return html;
+        }
+        virtual String getStatus() override{
+            String json = "{\"physical\":\"";
+            json += physicalState==HIGH?"not pressed":"pressed";
+            json += "\", \"online\":\"";
+            json += onlineState==1?"ON":"OFF";
+            json += "\"}";
+            return json;
+        }
+        virtual void toggle(){
+            if (onlineState == 0) {    
+                if (!MyMQTTClient::getInstance()->publish((char *) setTopic,(char *) msgOn,qtAT_LEAST_ONCE,false,false)) {
+                    Serial.println("MQTT Send ON failed");
+                }
+            } else {
+                if (!MyMQTTClient::getInstance()->publish((char *) setTopic,(char *) msgOff,qtAT_LEAST_ONCE,false,false)) {
+                    Serial.println("MQTT Send Off failed");
+                }
+            }
         }
 
 };

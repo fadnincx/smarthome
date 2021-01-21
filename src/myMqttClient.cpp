@@ -19,20 +19,27 @@ MyMQTTClient::MyMQTTClient(){}
 void MyMQTTClient::connectToMQTT() {
 
     // Set Stream
+    Serial.println("Get Stream");
     this->stream = &wifiClient;
-
-    // Configure Last Will Message -> offline information
-    strcpy(this->willMessage.topic, Config::getInstance()->getAvailableTopic());
-    strcpy(this->willMessage.data, Config::getInstance()->getAvailableOfflineMessage());
-    this->willMessage.enabled = true;
-    this->willMessage.retain = true;
-    this->willMessage.qos = qtAT_LEAST_ONCE;
-
+    Serial.println("Check Will");
+    bool hasWill = false;
+    if(Config::getInstance()->getAvailableTopic()[0] != '\0'){
+        Serial.println("Has Will Msg");
+        // Configure Last Will Message -> offline information
+        strcpy(this->willMessage.topic, Config::getInstance()->getAvailableTopic());
+        strcpy(this->willMessage.data, Config::getInstance()->getAvailableOfflineMessage());
+        this->willMessage.enabled = true;
+        this->willMessage.retain = true;
+        this->willMessage.qos = qtAT_LEAST_ONCE;
+        hasWill = true;
+    }else{
+        Serial.println("Has no will msg");
+    }
     //Connect
-
+    Serial.println("Connect");
     this->connect((char*) Name::getInstance()->getName(),(char*) MQTT_USER,(char*) MQTT_PASSWORD, true);
-
-    sendOnline = false;
+    Serial.println("Connected");
+    sendOnline = !hasWill;
 }
 
 // Events
@@ -126,9 +133,9 @@ void MyMQTTClient::mqttMaintain(){
 
             if(!sendOnline){
                 if (!this->publish((char *) Config::getInstance()->getAvailableTopic(),(char *) Config::getInstance()->getAvailableOnlineMessage(),qtAT_LEAST_ONCE,true,false)) {
-                    Serial.print("MQTT Send Available status failed");
+                    Serial.println("MQTT Send Available status failed");
                 } else {
-                    Serial.print("MQTT Send Available status successfull");
+                    Serial.println("MQTT Send Available status successfull");
                     sendOnline = true;
                 }
             }

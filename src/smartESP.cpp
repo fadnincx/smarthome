@@ -19,23 +19,9 @@
 // Mqtt
 #include "MyMqttClient.h"
 
+// Led
+#include "led.h"
 
-
-// TODO
-
-// Define mqtt topic whether it is currently day or night.
-// Used since i have troubles with NTP
-#define SUN_STATE_TOPIC "sun"
-
-// Define NTP
-#define NTP_HOST "192.168.1.2"
-
-// Define LED Pin
-#define LED_PIN 2
-
-// Define Arduino Pins on ESP available
-#define ALLOWED_PINS {0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16}
-#define NR_ALLOWED_PINS 11
 
 
 /**
@@ -83,5 +69,8 @@ void loop() {
 
   // Process Webservice
   processWeb();
+
+  // Process Led
+  Led::getInstance()->blinkLoop();
 
 }

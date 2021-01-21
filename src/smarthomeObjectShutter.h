@@ -43,13 +43,13 @@ class Shutter: public BaseObject{
             shutterUpPhysicalState = digitalRead( pinUp );
             shutterDownPhysicalState = digitalRead( pinDown );
         }
-        void subscribeToMqtt() override{
+        virtual void subscribeToMqtt() override{
             MyMQTTClient::getInstance()->subscribe((char *) statusTopic, qtAT_LEAST_ONCE);
         }
-        void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
+        virtual void msgArrived(char *topic, char *data, bool retain, bool duplicate) override{
            return;
         }
-        void checkForAction() override{
+        virtual void checkForAction() override{
             // Check Shutter Up Pressed
             if( digitalRead( pinUp ) == LOW && shutterUpPhysicalState == HIGH && shutterUpLastPressHandled) {
                 shutterUpLastPressHandled = false;
@@ -95,17 +95,58 @@ class Shutter: public BaseObject{
                 Led::getInstance()->blinkLed();
             }
         }
-        String getHtmlInfo() override{
-            String html = "Shutter Up on pin <b>";
-            html += pinUp;
-            html += "</b> is ";
-            html += shutterUpPhysicalState==HIGH?"<b>not</b> ":"";
-            html += "pressed and Shutter Down on pin <b>";
-            html += pinDown;
-            html += "</b> is";
-            html += shutterDownPhysicalState==HIGH?"<b>not</b> ":"";
-            html += " pressed";
+        virtual String getFixedHtmlTile(int n){
+            String html = "<div class=\'shutter\' style='border: 1px solid black; padding: 10px; margin: 10px; width: 300px;'>";
+            html+="<h3>Shutter</h3>";
+            html+="<p>Pin ";
+            html+=pinUp;
+            html+=" and Pin ";
+            html+=pinDown;
+            html+="</p>";
+            html+="<p>Physically Up <span id='shutter-";
+            html+=n;
+            html+="-up'>N/A</span></p>";
+            html+="<p>Physically Down <span id='shutter-";
+            html+=n;
+            html+="-down'>N/A</span></p>";
+            html+="<script>";
+            html+="setInterval(function() {";
+            html+="    getData";
+            html+=n;
+            html+="();";
+            html+="}, 2000);";
+            html+="function getData";
+            html+=n;
+            html+="(){";
+            html+="    var xhttp = new XMLHttpRequest();";
+            html+="    xhttp.onreadystatechange = function() {";
+            html+="        if (this.readyState == 4 && this.status == 200) {";
+            html+="            var d = JSON.parse(this.responseText);";
+            html+="            document.getElementById('shutter-";
+            html+=n;
+            html+="-up').innerHTML = d.physicalUp;";
+            html+="            document.getElementById('shutter-";
+            html+=n;
+            html+="-down').innerHTML = d.physicalDown;";
+            html+="        }";
+            html+="    };";
+            html+="    xhttp.open('GET', 'status/";
+            html+=n;
+            html+="', true);";
+            html+="    xhttp.send();";
+            html+="}";
+            html+="</script>";
+            html+="</div>";
+            
             return html;
+        }
+        virtual String getStatus() override{
+            String json = "{\"physicalUp\":\"";
+            json += shutterUpPhysicalState==HIGH?"not pressed":"pressed";
+            json += "\",\"physicalDown\":\"";
+            json += shutterDownPhysicalState==HIGH?"not pressed":"pressed";
+            json += "\"}";
+            return json;
         }
 };
 

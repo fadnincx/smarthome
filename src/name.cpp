@@ -42,9 +42,10 @@ uint32_t Name::calculateCRC32(const uint8_t *data, size_t length) {
 Name::Name() {  // private constructor
     if (ESP.rtcUserMemoryRead(0, (uint32_t*) &rtcData, sizeof(rtcData))) {
         hasRTC = true;
-        Serial.println("Read: ");
+       /* Serial.println("Read: ");
         printMemory();
-        Serial.println();
+        Serial.println();*/
+        Serial.println("Read name from RTC");
         uint32_t crcOfData = calculateCRC32((uint8_t*) &rtcData.data[0], sizeof(rtcData.data));
         Serial.print("CRC32 of data: ");
         Serial.println(crcOfData, HEX);
@@ -70,15 +71,16 @@ void Name::setName(const char* newName){
     name = newName;
     if(hasRTC) {
         // Copy Name
-        memcpy(rtcData.data, newName, sizeof(newName));
+        strcpy(rtcData.data, newName);
         // Update CRC32
         rtcData.crc32 = calculateCRC32((uint8_t*) &rtcData.data[0], sizeof(rtcData.data));
 
         // Write to RTC
         if (ESP.rtcUserMemoryWrite(0, (uint32_t*) &rtcData, sizeof(rtcData))) {
-            Serial.println("Write: ");
+           /* Serial.println("Write: ");
             printMemory();
             Serial.println();
+            Serial.println("Written new name to RTC");*/
         }
     }
 }
